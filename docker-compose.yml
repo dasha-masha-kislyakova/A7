@@ -1,0 +1,82 @@
+services:
+  proxy:
+    build: .
+    environment:
+      - SERVICE=proxy
+      - PORT=8080
+
+      - AUTH_URL=http://auth:8083
+      - OFFICE_URL=http://office:8081
+      - LOGISTIC_URL=http://logistic:8082
+      - FE_DIR=/app/FE
+      - JWT_SECRET=dev-secret
+    ports:
+      - "8080:8080"
+    depends_on:
+      - auth
+      - office
+      - logistic
+
+  auth:
+    build: .
+    environment:
+      - SERVICE=auth
+      - PORT=8083
+      - JWT_SECRET=dev-secret
+    expose:
+      - "8083"
+
+  office:
+    build: .
+    environment:
+      - SERVICE=office
+      - PORT=8081
+      
+      - DB_DSN=postgres://postgres:postgres@office-db:5432/office?sslmode=disable
+    expose:
+      - "8081"
+    depends_on:
+      office-db:
+        condition: service_healthy
+
+  logistic:
+    build: .
+    environment:
+      - SERVICE=logistic
+      - PORT=8082
+      - DB_DSN=postgres://postgres:postgres@logistic-db:5432/logistic?sslmode=disable
+      - OFFICE_INTERNAL_URL=http://office:8081
+      - PLANNER_INTERVAL=10
+    expose:
+      - "8082"
+    depends_on:
+      logistic-db:
+        condition: service_healthy
+
+  office-db:
+    image: postgres:16-alpine
+    environment:
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_USER=postgres
+      - POSTGRES_DB=office
+    ports:
+      - "5435:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  logistic-db:
+    image: postgres:16-alpine
+    environment:
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_USER=postgres
+      - POSTGRES_DB=logistic
+    ports:
+      - "5434:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
