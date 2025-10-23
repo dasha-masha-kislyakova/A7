@@ -1,0 +1,16 @@
+version: "2"
+sql:
+  - engine: postgresql
+    schema: "migrations/office"
+    queries: "internal/queries/office"
+    gen:
+      go:
+        package: officeq
+        out: internal/sqlc/office
+  - engine: postgresql
+    schema: "migrations/logistic"
+    queries: "internal/queries/logistic"
+    gen:
+      go:
+        package: logisticq
+        out: internal/sqlc/logistic
