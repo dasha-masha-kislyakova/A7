@@ -6,54 +6,40 @@ import (
 	"net/http/httputil"
 	"net/url"
 	"os"
+
+	"github.com/gorilla/mux"
 )
 
-func mustURL(env, def string) *url.URL {
-	raw := os.Getenv(env)
-	if raw == "" {
-		raw = def
+func Start(port, officeURL, logisticURL, authURL, auditURL, feDir string) {
+	r := mux.NewRouter()
+	r.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(http.StatusOK) })
+
+	r.PathPrefix("/office/").Handler(reverseProxy(officeURL))
+	r.PathPrefix("/logistic/").Handler(reverseProxy(logisticURL))
+	r.PathPrefix("/auth/").Handler(reverseProxy(authURL))
+	r.PathPrefix("/audit/").Handler(reverseProxy(auditURL))
+
+	// FE статика (если есть)
+	if stat, err := os.Stat(feDir); err == nil && stat.IsDir() {
+		r.PathPrefix("/").Handler(http.FileServer(http.Dir(feDir)))
+	} else {
+		r.PathPrefix("/").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			http.NotFound(w, r)
+		})
 	}
-	u, err := url.Parse(raw)
+
+	log.Printf("[proxy] :%s (office=%s, logistic=%s, auth=%s, audit=%s, FE=%s)", port, officeURL, logisticURL, authURL, auditURL, feDir)
+	log.Fatal(http.ListenAndServe(":"+port, r))
+}
+
+func reverseProxy(target string) http.Handler {
+	u, err := url.Parse(target)
 	if err != nil {
-		log.Fatalf("bad %s=%q: %v", env, raw, err)
+		log.Fatalf("bad proxy target %q: %v", target, err)
 	}
-	return u
-}
-
-func New(feDir string, jwtSecret string) *http.ServeMux {
-	mux := http.NewServeMux()
-
-	// адреса внутренних сервисов
-	authURL := mustURL("AUTH_URL", "http://localhost:8083")
-	officeURL := mustURL("OFFICE_URL", "http://localhost:8081")
-	logisticURL := mustURL("LOGISTIC_URL", "http://localhost:8082")
-
-	// reverse proxy
-	mux.Handle("/auth/", httputil.NewSingleHostReverseProxy(authURL))
-	mux.Handle("/office/", withJWT(httputil.NewSingleHostReverseProxy(officeURL), jwtSecret))
-	mux.Handle("/logistic/", withJWT(httputil.NewSingleHostReverseProxy(logisticURL), jwtSecret))
-
-	// статика FE
-	fs := http.FileServer(http.Dir(feDir))
-	mux.Handle("/", fs)
-
-	// простая health-страница
-	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(200); _, _ = w.Write([]byte("ok")) })
-
-	return mux
-}
-
-// простая проверка наличия Authorization: Bearer <token>
-// (если у вас уже есть своя валидация JWT — используйте её вместо этой заглушки)
-func withJWT(next http.Handler, secret string) http.Handler {
+	proxy := httputil.NewSingleHostReverseProxy(u)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/office/applications" && r.Method == http.MethodPost {
-			// этот код — пример; в нормальном случае проверяем все защищённые ручки
-		}
-		if r.Header.Get("Authorization") == "" {
-			http.Error(w, "missing Authorization", http.StatusUnauthorized)
-			return
-		}
-		next.ServeHTTP(w, r)
+		r.Host = u.Host
+		proxy.ServeHTTP(w, r)
 	})
 }
