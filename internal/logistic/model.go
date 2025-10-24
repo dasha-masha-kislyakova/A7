@@ -2,47 +2,65 @@ package logistic
 
 import "time"
 
-type ShipmentStatus string
+type ApplicationStatus string
 
 const (
-	ShipPLANNED   ShipmentStatus = "PLANNED"
-	ShipDEPARTED  ShipmentStatus = "DEPARTED"
-	ShipDELIVERED ShipmentStatus = "DELIVERED"
+	StatusNew        ApplicationStatus = "NEW"
+	StatusInProgress ApplicationStatus = "IN_PROGRESS"
+	StatusShipped    ApplicationStatus = "SHIPPED"
+	StatusDelivered  ApplicationStatus = "DELIVERED"
+	StatusCancelled  ApplicationStatus = "CANCELLED"
 )
 
-type Shipment struct {
-	ID          int64          `json:"id"`
-	MaxWeightKg float64        `json:"max_weight_kg"`
-	MaxVolumeM3 float64        `json:"max_volume_m3"`
-	DepartureAt time.Time      `json:"departure_at"`
-	Status      ShipmentStatus `json:"status"`
-	CreatedAt   time.Time      `json:"created_at"`
+type LogisticApplication struct {
+	ID                    int64             `json:"id"`
+	OriginalApplicationID int64             `json:"original_application_id"`
+	Status                ApplicationStatus `json:"status"`
+	CreatedAt             time.Time         `json:"created_at"`
+	UpdatedAt             time.Time         `json:"updated_at"`
+}
+
+type RouteStatus string
+
+const (
+	RouteDraft      RouteStatus = "DRAFT"
+	RouteScheduled  RouteStatus = "SCHEDULED"
+	RouteInProgress RouteStatus = "IN_PROGRESS"
+	RouteCompleted  RouteStatus = "COMPLETED"
+)
+
+type Route struct {
+	ID               int64       `json:"id"`
+	TruckVolume      float64     `json:"truck_volume"`
+	TruckMaxWeight   float64     `json:"truck_max_weight"`
+	DepartureDate    time.Time   `json:"departure_date"`
+	Status           RouteStatus `json:"status"`
+	CreatedByManager int64       `json:"created_by_manager_id"`
+	CreatedAt        time.Time   `json:"created_at"`
+	UpdatedAt        time.Time   `json:"updated_at"`
 }
 
 type RoutePoint struct {
-	ID              int64     `json:"id"`
-	ShipmentID      int64     `json:"shipment_id"`
-	PointID         int64     `json:"point_id"`
-	PlannedArriveAt time.Time `json:"planned_arrive_at"`
-	Ordinal         int16     `json:"ordinal"`
+	ID               int64     `json:"id"`
+	RouteID          int64     `json:"route_id"`
+	LogisticsPointID int64     `json:"logistics_point_id"`
+	PointOrder       int       `json:"point_order"`
+	PlannedArrival   time.Time `json:"planned_arrival"`
 }
 
-type LogisticPoint struct {
-	ID        int64     `json:"id"`
-	Title     string    `json:"title"`
-	Address   *string   `json:"address,omitempty"`
-	Lat       *float64  `json:"lat,omitempty"`
-	Lon       *float64  `json:"lon,omitempty"`
-	CreatedAt time.Time `json:"created_at"`
+type CreateRouteRequest struct {
+	TruckVolume    float64           `json:"truck_volume"`
+	TruckMaxWeight float64           `json:"truck_max_weight"`
+	DepartureDate  time.Time         `json:"departure_date"`
+	RoutePoints    []RoutePointInput `json:"route_points"`
 }
 
-type Assignment struct {
-	ID                     int64     `json:"id"`
-	ShipmentID             int64     `json:"shipment_id"`
-	ApplicationExternalID  int64     `json:"application_external_id"`
-	PickupPointExternalID  *int64    `json:"pickup_point_external_id,omitempty"`
-	DropoffPointExternalID *int64    `json:"dropoff_point_external_id,omitempty"`
-	WeightKg               float64   `json:"weight_kg"`
-	VolumeM3               float64   `json:"volume_m3"`
-	CreatedAt              time.Time `json:"created_at"`
+type RoutePointInput struct {
+	LogisticsPointID int64     `json:"logistics_point_id"`
+	PointOrder       int       `json:"point_order"`
+	PlannedArrival   time.Time `json:"planned_arrival"`
+}
+
+type UpdateStatusRequest struct {
+	Status ApplicationStatus `json:"status"`
 }

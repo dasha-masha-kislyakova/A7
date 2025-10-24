@@ -1,8 +1,8 @@
 package auth
 
-type User struct {
-	ID       int
-	Email    string
-	Password string
-	Role     string // office_admin | logpoint_admin
+type Manager struct {
+	ID       int64
+	Username string
+	Password string // для моков — храним в открытую
+	Role     string // "office_manager" | "logistics_manager"
 }
