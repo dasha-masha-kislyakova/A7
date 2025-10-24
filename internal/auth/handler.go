@@ -3,6 +3,7 @@ package auth
 import (
 	"encoding/json"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -13,9 +14,8 @@ type Handler struct{ svc Service }
 func NewHandler(svc Service) *Handler { return &Handler{svc: svc} }
 
 func (h *Handler) Register(r *mux.Router) {
-	// r — суброутер с префиксом /auth
 	r.HandleFunc("/login", h.login).Methods("POST")
-	r.HandleFunc("/verify", h.verify).Methods("GET") // простая проверка, что токен принят прокси/клиентом
+	r.HandleFunc("/verify", h.verify).Methods("GET")
 	r.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(http.StatusOK) })
 }
 
@@ -37,6 +37,10 @@ func (h *Handler) login(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "bad json", http.StatusBadRequest)
 		return
 	}
+	// страховка от «мусора»
+	req.Username = strings.TrimSpace(req.Username)
+	req.Password = strings.TrimSpace(req.Password)
+
 	token, role, ttl, err := h.svc.Login(req.Username, req.Password)
 	if err != nil {
 		http.Error(w, "unauthorized", http.StatusUnauthorized)

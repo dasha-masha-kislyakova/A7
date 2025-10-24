@@ -2,6 +2,7 @@ package auth
 
 import (
 	"errors"
+	"strings"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -22,8 +23,11 @@ func NewService(repo Repo, jwtSecret string, ttl time.Duration) Service {
 }
 
 func (s *service) Login(username, password string) (string, string, time.Duration, error) {
-	u, ok := s.repo.ByUsername(username)
-	if !ok || u.Password != password {
+	uName := strings.ToLower(strings.TrimSpace(username))
+	pwd := strings.TrimSpace(password)
+
+	u, ok := s.repo.ByUsername(uName)
+	if !ok || strings.TrimSpace(u.Password) != pwd {
 		return "", "", 0, errors.New("invalid credentials")
 	}
 	claims := jwt.MapClaims{
